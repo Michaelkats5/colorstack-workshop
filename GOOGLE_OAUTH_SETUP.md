@@ -6,10 +6,10 @@ Follow these steps to get your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
 ## Step 1 — Create a Google Cloud project
 
-1. Go to [https://console.cloud.google.com](https://console.cloud.google.com)
-2. Click the project dropdown (top left) → **New Project**
-3. Name it `colorstack-workshop` → click **Create**
-4. Make sure the new project is selected in the dropdown
+1. Go to https://console.cloud.google.com/projectcreate
+3. Click the project dropdown (top left) → **New Project**
+4. Name it `colorstack-workshop` → click **Create**
+5. Make sure the new project is selected in the dropdown
 
 ---
 
