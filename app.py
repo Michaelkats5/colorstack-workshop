@@ -127,7 +127,7 @@ def get_stock(ticker):
             params={"ticker": t, "type": "STOCKS"},
         )
         quote_data = quote_res.json()
-        q = quote_data.get("body", {})
+        quote = quote_data.get("body", {})
 
         # Fetch 30 days of historical closing prices
         hist_res  = requests.get(
@@ -149,19 +149,19 @@ def get_stock(ticker):
         history = sorted(history, key=lambda x: x["date"])[-30:]
 
         # Dividend yield comes as decimal — convert to %
-        raw_yield = q.get("dividendYield")
+        raw_yield = quote.get("dividendYield")
         dividend_yield = round(float(raw_yield) * 100, 2) if raw_yield else None
 
         return jsonify({
             "ticker":         t,
-            "name":           q.get("longName", t),
-            "price":          round(float(q.get("regularMarketPrice", 0)), 2),
-            "change":         round(float(q.get("regularMarketChangePercent", 0)), 2),
-            "market_cap":     q.get("marketCap"),
-            "volume":         q.get("regularMarketVolume"),
-            "week_52_high":   q.get("fiftyTwoWeekHigh"),
-            "week_52_low":    q.get("fiftyTwoWeekLow"),
-            "pe_ratio":       q.get("trailingPE"),
+            "name":           quote.get("longName", t),
+            "price":          round(float(quote.get("regularMarketPrice", 0)), 2),
+            "change":         round(float(quote.get("regularMarketChangePercent", 0)), 2),
+            "market_cap":     quote.get("marketCap"),
+            "volume":         quote.get("regularMarketVolume"),
+            "week_52_high":   quote.get("fiftyTwoWeekHigh"),
+            "week_52_low":    quote.get("fiftyTwoWeekLow"),
+            "pe_ratio":       quote.get("trailingPE"),
             "dividend_yield": dividend_yield,
             "history":        history,
         })
@@ -174,4 +174,3 @@ if __name__ == "__main__":
     # Falls back to 5000 for local development
     port = int(os.getenv("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
-    app.run(debug=True, port=5000)  # debug=True auto-restarts on save
