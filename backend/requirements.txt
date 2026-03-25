@@ -1,5 +1,7 @@
 flask
 flask-cors
-python-dotenv
-requests
 yfinance
+python-dotenv
+
+# Full version (Google OAuth + token exchange) — uncomment when re-enabling OAuth:
+# requests

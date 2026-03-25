@@ -1,169 +1,135 @@
-"""Flask API for auth + stock data used by the React dashboard."""
+"""
+Flask API for the workshop stock dashboard.
+
+Workshop version: stock data comes from yfinance only (no RapidAPI, no API keys).
+Google OAuth routes are disabled below — see commented blocks to re-enable.
+"""
 
 import os
-from urllib.parse import urlparse
+from typing import Any
 
-import requests
+import yfinance as yf
 from dotenv import load_dotenv
-from flask import Flask, jsonify, redirect, request, session
+from flask import Flask, jsonify
 from flask_cors import CORS
 
+# Load .env if present; workshop runs fine without any .env file.
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-key")
+# GOOGLE OAUTH — not used in workshop version
+# When OAuth is re-enabled, set FLASK_SECRET_KEY in .env for session signing.
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-key-workshop")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY")
-RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "yahoo-finance15.p.rapidapi.com")
 
 CORS(
     app,
-    supports_credentials=True,
+    supports_credentials=False,
     origins=[r"http://localhost:\d+", r"http://127.0.0.1:\d+", FRONTEND_URL],
 )
 
 
-def rapidapi_headers():
-    """Builds RapidAPI headers from environment config and returns a dict."""
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Coerces a value to float, returning default when missing or invalid."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _yf_ticker(ticker_symbol: str):
+    """Returns a yfinance Ticker for the given uppercase symbol."""
+    return yf.Ticker(ticker_symbol.upper())
+
+
+def build_quote_dict(ticker_symbol: str) -> dict[str, Any]:
+    """
+    Pulls live quote fields from yfinance info / fast_info.
+    Returns a dict suitable for JSON (price, name, market cap, volume, highs/lows, etc.).
+    """
+    stock = _yf_ticker(ticker_symbol)
+    info: dict = stock.info or {}
+    fast: dict = getattr(stock, "fast_info", {}) or {}
+
+    name = (
+        info.get("longName")
+        or info.get("shortName")
+        or fast.get("name")
+        or ticker_symbol
+    )
+    price = (
+        info.get("regularMarketPrice")
+        or info.get("currentPrice")
+        or fast.get("last_price")
+    )
+    change_pct = info.get("regularMarketChangePercent")
+    if change_pct is None:
+        change_pct = fast.get("regular_market_change_percent")
+
+    market_cap = info.get("marketCap") or fast.get("market_cap")
+    volume = info.get("regularMarketVolume") or info.get("volume") or fast.get("last_volume")
+
+    day_high = info.get("dayHigh") or info.get("regularMarketDayHigh")
+    day_low = info.get("dayLow") or info.get("regularMarketDayLow")
+    week_52_high = info.get("fiftyTwoWeekHigh")
+    week_52_low = info.get("fiftyTwoWeekLow")
+    pe_ratio = info.get("trailingPE")
+
+    raw_div = info.get("dividendYield")
+    dividend_yield = None
+    if raw_div is not None:
+        dividend_yield = round(float(raw_div) * 100, 2) if raw_div <= 1 else round(float(raw_div), 2)
+
     return {
-        "X-RapidAPI-Key": RAPIDAPI_KEY,
-        "X-RapidAPI-Host": RAPIDAPI_HOST,
+        "ticker": ticker_symbol.upper(),
+        "name": name,
+        "price": round(_safe_float(price), 2),
+        "change": round(_safe_float(change_pct), 2),
+        "market_cap": market_cap,
+        "volume": volume,
+        "day_high": round(_safe_float(day_high), 2) if day_high is not None else None,
+        "day_low": round(_safe_float(day_low), 2) if day_low is not None else None,
+        "week_52_high": round(_safe_float(week_52_high), 2) if week_52_high is not None else None,
+        "week_52_low": round(_safe_float(week_52_low), 2) if week_52_low is not None else None,
+        "pe_ratio": round(_safe_float(pe_ratio), 2) if pe_ratio is not None else None,
+        "dividend_yield": dividend_yield,
     }
 
 
-def frontend_redirect_target():
-    """Resolves frontend origin from request headers/referrer and returns URL string."""
-    request_origin = request.headers.get("Origin")
-    if request_origin and ("localhost" in request_origin or "127.0.0.1" in request_origin):
-        return request_origin
-
-    request_referrer = request.referrer
-    if request_referrer:
-        parsed_referrer = urlparse(request_referrer)
-        if parsed_referrer.scheme and parsed_referrer.netloc:
-            return f"{parsed_referrer.scheme}://{parsed_referrer.netloc}"
-
-    return FRONTEND_URL
-
-
-def demo_stock_payload(ticker_symbol: str):
-    """Returns stable fallback stock payload when upstream data is unavailable."""
-    return {
-        "ticker": ticker_symbol,
-        "name": f"{ticker_symbol} (Demo Data)",
-        "price": 213.55,
-        "change": 1.24,
-        "market_cap": 3200000000000,
-        "volume": 65432100,
-        "week_52_high": 245.12,
-        "week_52_low": 164.08,
-        "pe_ratio": 31.7,
-        "dividend_yield": 0.55,
-        "history": [
-            {"date": "2026-02-24", "close": 199.2, "volume": 62000000},
-            {"date": "2026-02-25", "close": 200.3, "volume": 61500000},
-            {"date": "2026-02-26", "close": 202.1, "volume": 60100000},
-            {"date": "2026-02-27", "close": 201.6, "volume": 59200000},
-            {"date": "2026-02-28", "close": 203.4, "volume": 60500000},
-            {"date": "2026-03-01", "close": 204.0, "volume": 61100000},
-            {"date": "2026-03-02", "close": 205.3, "volume": 62200000},
-            {"date": "2026-03-03", "close": 206.8, "volume": 63400000},
-            {"date": "2026-03-04", "close": 205.9, "volume": 62800000},
-            {"date": "2026-03-05", "close": 207.1, "volume": 64000000},
-            {"date": "2026-03-06", "close": 208.0, "volume": 64500000},
-            {"date": "2026-03-07", "close": 207.4, "volume": 63900000},
-            {"date": "2026-03-08", "close": 208.7, "volume": 64800000},
-            {"date": "2026-03-09", "close": 209.9, "volume": 65200000},
-            {"date": "2026-03-10", "close": 210.5, "volume": 65800000},
-            {"date": "2026-03-11", "close": 211.2, "volume": 66100000},
-            {"date": "2026-03-12", "close": 210.8, "volume": 65500000},
-            {"date": "2026-03-13", "close": 212.0, "volume": 66400000},
-            {"date": "2026-03-14", "close": 212.7, "volume": 66800000},
-            {"date": "2026-03-15", "close": 213.55, "volume": 65432100},
-        ],
-    }
-
-
-def fetch_quote_payload(ticker_symbol: str):
-    """Fetches quote payload from RapidAPI and returns parsed JSON dict."""
-    quote_response = requests.get(
-        "https://yahoo-finance15.p.rapidapi.com/api/v1/markets/quote",
-        headers=rapidapi_headers(),
-        params={"ticker": ticker_symbol, "type": "STOCKS"},
-        timeout=20,
-    )
-    return quote_response.json() if quote_response.content else {}
-
-
-def fetch_history_payload(ticker_symbol: str):
-    """Fetches historical payload from RapidAPI and returns parsed JSON dict."""
-    history_response = requests.get(
-        "https://yahoo-finance15.p.rapidapi.com/api/v1/markets/stock/history",
-        headers=rapidapi_headers(),
-        params={"symbol": ticker_symbol, "interval": "1d", "diffandsplits": "false"},
-        timeout=20,
-    )
-    return history_response.json() if history_response.content else {}
-
-
-def parse_history_points(history_payload):
-    """Converts raw history map into sorted list of date/close/volume dicts."""
-    raw_history_map = history_payload.get("body", None) if isinstance(history_payload, dict) else None
-    if not isinstance(raw_history_map, dict):
+def build_history_list(ticker_symbol: str, period: str = "1y") -> list[dict[str, Any]]:
+    """
+    Fetches daily history from yfinance and returns a list of {date, close, volume} dicts.
+    """
+    stock = _yf_ticker(ticker_symbol)
+    hist = stock.history(period=period)
+    if hist is None or hist.empty:
         return []
 
-    normalized_points = [
-        {
-            "date": history_entry.get("date", ""),
-            "close": round(float(history_entry.get("close", 0)), 2),
-            "volume": int(history_entry.get("volume", 0)),
-        }
-        for history_entry in raw_history_map.values()
-        if history_entry.get("close")
-    ]
-    return sorted(normalized_points, key=lambda point: point["date"])[-30:]
-
-
-def build_live_stock_payload(ticker_symbol: str, quote_payload, history_points):
-    """Builds final stock response from quote + history inputs and returns dict."""
-    quote_body = quote_payload.get("body", {}) if isinstance(quote_payload, dict) else {}
-    raw_dividend_yield = quote_body.get("dividendYield")
-    dividend_yield_percent = round(float(raw_dividend_yield) * 100, 2) if raw_dividend_yield else None
-
-    return {
-        "ticker": ticker_symbol,
-        "name": quote_body.get("longName", ticker_symbol),
-        "price": round(float(quote_body.get("regularMarketPrice", 0)), 2),
-        "change": round(float(quote_body.get("regularMarketChangePercent", 0)), 2),
-        "market_cap": quote_body.get("marketCap"),
-        "volume": quote_body.get("regularMarketVolume"),
-        "week_52_high": quote_body.get("fiftyTwoWeekHigh"),
-        "week_52_low": quote_body.get("fiftyTwoWeekLow"),
-        "pe_ratio": quote_body.get("trailingPE"),
-        "dividend_yield": dividend_yield_percent,
-        "history": history_points,
-    }
-
-
-def demo_response_with_warning(ticker_symbol: str, warning_message: str):
-    """Builds demo fallback payload including warning text and provider metadata."""
-    return jsonify(
-        demo_stock_payload(ticker_symbol)
-        | {"warning": warning_message, "provider": "demo"}
-    )
+    rows: list[dict[str, Any]] = []
+    for date_index, row in hist.iterrows():
+        date_str = date_index.strftime("%Y-%m-%d") if hasattr(date_index, "strftime") else str(date_index)[:10]
+        close_val = row.get("Close")
+        vol_val = row.get("Volume")
+        rows.append(
+            {
+                "date": date_str,
+                "close": round(_safe_float(close_val), 2),
+                "volume": int(_safe_float(vol_val, 0)),
+            }
+        )
+    return rows
 
 
 @app.route("/")
 def index():
-    """Returns basic backend heartbeat metadata as JSON."""
+    """Returns JSON confirming the API process is running."""
     return jsonify(
         {
             "status": "ok",
-            "message": "ColorStack Finance backend is running",
+            "message": "ColorStack Finance backend is running (yfinance workshop mode)",
             "frontend_url": FRONTEND_URL,
         }
     )
@@ -171,119 +137,96 @@ def index():
 
 @app.route("/api/healthz")
 def healthz():
-    """Returns non-secret health check details for debugging setup issues."""
-    return jsonify({"status": "ok", "rapidapi_key_present": bool(RAPIDAPI_KEY)})
+    """Returns JSON health status for monitoring (no secrets)."""
+    return jsonify({"status": "ok", "data_source": "yfinance"})
 
 
-@app.route("/auth/workshop-login")
-def workshop_login():
-    """Creates demo user session and redirects to frontend for workshop mode."""
-    workshop_mode_enabled = True
-    if not workshop_mode_enabled:
-        return jsonify({"error": "Workshop mode is disabled"}), 403
-
-    session["user"] = {
-        "name": "Workshop User",
-        "email": "workshop@colorstack.org",
-        "picture": "https://ui-avatars.com/api/?name=Workshop+User&background=2563eb&color=fff",
-    }
-    return redirect(frontend_redirect_target())
+@app.route("/api/health")
+def health():
+    """Minimal liveness probe; returns 200 when Flask is up."""
+    return jsonify({"status": "ok"})
 
 
-@app.route("/auth/login")
-def login():
-    """Redirects browser to Google OAuth authorization endpoint."""
-    google_auth_url = (
-        "https://accounts.google.com/o/oauth2/v2/auth"
-        f"?client_id={GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={GOOGLE_REDIRECT_URI}"
-        "&response_type=code"
-        "&scope=openid%20email%20profile"
-        "&access_type=offline"
-    )
-    return redirect(google_auth_url)
+# --- Stock routes: register /history BEFORE /api/stock/<ticker> (more specific path) ---
 
 
-@app.route("/auth/callback")
-def callback():
-    """Exchanges OAuth code for user info, stores session, and redirects frontend."""
-    authorization_code = request.args.get("code")
-    if not authorization_code:
-        return jsonify({"error": "No code returned from Google"}), 400
-
-    token_response = requests.post(
-        "https://oauth2.googleapis.com/token",
-        data={
-            "code": authorization_code,
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": GOOGLE_REDIRECT_URI,
-            "grant_type": "authorization_code",
-        },
-        timeout=20,
-    )
-    google_access_token = token_response.json().get("access_token")
-    profile_response = requests.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {google_access_token}"},
-        timeout=20,
-    )
-    profile_data = profile_response.json()
-
-    session["user"] = {
-        "name": profile_data.get("name"),
-        "email": profile_data.get("email"),
-        "picture": profile_data.get("picture"),
-    }
-    return redirect(frontend_redirect_target())
-
-
-@app.route("/auth/me")
-def me():
-    """Returns current session user object or 401 when not authenticated."""
-    authenticated_user = session.get("user")
-    if not authenticated_user:
-        return jsonify({"error": "Not authenticated"}), 401
-    return jsonify(authenticated_user)
-
-
-@app.route("/auth/logout")
-def logout():
-    """Clears session user and returns logout confirmation JSON."""
-    session.clear()
-    return jsonify({"message": "Logged out"})
+@app.route("/api/stock/<ticker>/history")
+def get_stock_history(ticker):
+    """
+    Returns historical OHLC-style points for charting (daily closes for period=1y).
+    Response shape: { "ticker": "...", "history": [ { "date", "close", "volume" }, ... ] }
+    """
+    try:
+        ticker_symbol = ticker.upper()
+        history_points = build_history_list(ticker_symbol, period="1y")
+        return jsonify({"ticker": ticker_symbol, "history": history_points})
+    except Exception as exc:
+        return jsonify({"error": str(exc), "ticker": ticker.upper(), "history": []}), 500
 
 
 @app.route("/api/stock/<ticker>")
 def get_stock(ticker):
-    """Returns live stock payload when possible; otherwise returns demo fallback."""
-    ticker_symbol = ticker.upper()
-
-    if not RAPIDAPI_KEY:
-        return demo_response_with_warning(ticker_symbol, "RAPIDAPI_KEY not set; using demo data.")
-
+    """
+    Returns live quote summary for one ticker (price, name, market cap, volume, day high/low, etc.).
+    Does not include full history — use GET /api/stock/<ticker>/history for charts.
+    """
     try:
-        quote_payload = fetch_quote_payload(ticker_symbol)
-        if not isinstance(quote_payload, dict) or "body" not in quote_payload:
-            warning_message = quote_payload.get("message", "Bad quote response")
-            return demo_response_with_warning(ticker_symbol, warning_message)
+        ticker_symbol = ticker.upper()
+        payload = build_quote_dict(ticker_symbol)
+        return jsonify(payload)
+    except Exception as exc:
+        return jsonify({"error": str(exc), "ticker": ticker.upper()}), 500
 
-        history_payload = fetch_history_payload(ticker_symbol)
-        history_points = parse_history_points(history_payload)
-        if not history_points:
-            warning_message = (
-                history_payload.get("message", "Bad history response")
-                if isinstance(history_payload, dict)
-                else "Bad history response"
-            )
-            return demo_response_with_warning(ticker_symbol, warning_message)
 
-        return jsonify(build_live_stock_payload(ticker_symbol, quote_payload, history_points))
-    except Exception as error:
-        return demo_response_with_warning(ticker_symbol, str(error))
+# =============================================================================
+# GOOGLE OAUTH — not used in workshop version
+# Uncomment the block below to re-enable Google login
+# Requires: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, FLASK_SECRET_KEY in .env
+# Also add: pip install requests
+# Also set supports_credentials=True in CORS and use credentials:"include" in fetch from React
+# =============================================================================
+#
+# from urllib.parse import urlparse
+# import requests
+# from flask import redirect, request, session
+#
+# GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+# GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+# GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+#
+# def frontend_redirect_target():
+#     request_origin = request.headers.get("Origin")
+#     if request_origin and ("localhost" in request_origin or "127.0.0.1" in request_origin):
+#         return request_origin
+#     request_referrer = request.referrer
+#     if request_referrer:
+#         parsed = urlparse(request_referrer)
+#         if parsed.scheme and parsed.netloc:
+#             return f"{parsed.scheme}://{parsed.netloc}"
+#     return FRONTEND_URL
+#
+# @app.route("/auth/workshop-login")
+# def workshop_login():
+#     session["user"] = {...}
+#     return redirect(frontend_redirect_target())
+#
+# @app.route("/auth/login")
+# def login():
+#     ...
+#
+# @app.route("/auth/callback")
+# def callback():
+#     ...
+#
+# @app.route("/auth/me")
+# def me():
+#     ...
+#
+# @app.route("/auth/logout")
+# def logout():
+#     ...
 
 
 if __name__ == "__main__":
-    """Runs local Flask development server."""
     port = int(os.getenv("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)

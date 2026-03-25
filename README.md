@@ -1,43 +1,26 @@
 # Colorstack Fintech Workshop
 
-This project is a full-stack stock dashboard:
-- **Backend**: Flask API for auth/session and stock data aggregation
-- **Frontend**: React + Vite dashboard UI
+Full-stack stock dashboard: **Flask** backend + **React (Vite)** frontend. Stock data comes from **yfinance** (Yahoo Finance) — no RapidAPI key required for the workshop.
 
-## Project Structure
+## Workshop Version
 
-```text
-project/
-├── backend/
-│   ├── app.py
-│   ├── requirements.txt
-│   ├── .env
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── index.js
-│   │   └── components/
-│   ├── public/
-│   ├── package.json
-│   └── .env
-├── .gitignore
-└── README.md
-```
+- **Google OAuth is disabled** — the UI uses a fixed “Workshop User” and does not call `/auth/*` or send cookies.
+- **No `.env` file is required** to run the backend; optional `FRONTEND_URL` helps CORS if your dev port is not the default.
+- Data is fetched with **yfinance** inside `backend/app.py` (no external API keys).
 
-## Run the Backend
+### Setup (minimal)
+
+**Backend**
 
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 python app.py
 ```
 
-Backend runs at `http://localhost:5000`.
+Runs at `http://localhost:5000`. Try `http://127.0.0.1:5000/api/stock/AAPL` for a live quote.
 
-## Run the Frontend
+**Frontend**
 
 ```bash
 cd frontend
@@ -45,32 +28,23 @@ npm install
 npm start
 ```
 
-Frontend runs on Vite dev port (usually `http://localhost:5173`).
+Open the URL Vite prints (often `http://localhost:5173`). Optional: set `VITE_API_BASE_URL` in `frontend/.env` if the API is not on port 5000.
 
-## Required Environment Variables
+## Full Version (re-enable Google OAuth)
 
-### `backend/.env`
+1. In `backend/app.py`, follow the commented **GOOGLE OAUTH** block: uncomment routes and add `requests` to `requirements.txt`.
+2. Copy `backend/.env.example` to `backend/.env` and set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, and `FLASK_SECRET_KEY`.
+3. Set `supports_credentials=True` in CORS and use `credentials: "include"` on auth-related `fetch` calls in React.
+4. In `frontend/src/App.jsx` and `Sidebar.jsx`, uncomment the OAuth / login / logout sections marked with **GOOGLE OAUTH**.
 
-```env
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:5000/auth/callback
-FLASK_SECRET_KEY=change_this_to_a_random_string
-FLASK_ENV=development
-RAPIDAPI_KEY=your_key_here
-RAPIDAPI_HOST=yahoo-finance15.p.rapidapi.com
-FRONTEND_URL=http://localhost:5173
+## Project layout
+
+```text
+backend/   — Flask API (yfinance)
+frontend/  — React + Vite UI
 ```
 
-### `frontend/.env`
+## How frontend and backend communicate
 
-```env
-VITE_API_BASE_URL=http://localhost:5000
-```
-
-## How Frontend and Backend Communicate
-
-- React sends requests to Flask at `http://localhost:5000`
-- Flask enables CORS for localhost dev ports and supports credentials
-- Auth state is stored in Flask session and read by `/auth/me`
-- Stock UI reads `/api/stock/<ticker>` and renders live or fallback data
+- React calls `GET /api/stock/<ticker>` for quote fields and `GET /api/stock/<ticker>/history` for chart data (merged in the UI).
+- CORS allows localhost dev origins; workshop mode does **not** use sessions or cookies.

@@ -1,13 +1,10 @@
-// ── LoginScreen.js ───────────────────────────────────────────
-// Shows the login page when no user is logged in.
-// Receives: API (the Flask base URL)
+// LoginScreen — Google OAuth login / workshop demo entry (not used in workshop version).
+// GOOGLE OAUTH — not used in workshop version
+// To re-enable: import LoginScreen in App.jsx and show it when user is not logged in.
+// See backend/app.py commented OAuth routes and GOOGLE_OAUTH_SETUP.md.
 
-// ─────────────────────────────────────────────────────────────
-// WORKSHOP MODE — set to true to skip Google OAuth
-// Set to false when you have real Google credentials set up
-// See GOOGLE_OAUTH_SETUP.md + video for full OAuth walkthrough
+// WORKSHOP_MODE — set to true to skip Google OAuth when this screen is used
 const WORKSHOP_MODE = true;
-// ─────────────────────────────────────────────────────────────
 
 export default function LoginScreen({ API }) {
   return (

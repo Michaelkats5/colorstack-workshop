@@ -1,18 +1,24 @@
-// App.jsx orchestrates authentication, stock fetching, and dashboard state.
-// It renders either the login screen or the full trading dashboard UI.
+// App.jsx — workshop dashboard: yfinance via Flask, no session / Google OAuth.
+// GOOGLE OAUTH — not used in workshop version
+// Uncomment LoginScreen + auth effects below to re-enable Google login UI
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-// Import each section as its own component
-import LoginScreen    from "./components/LoginScreen";
-import Sidebar        from "./components/Sidebar";
-import LeftPanel      from "./components/LeftPanel";
-import TopBar         from "./components/TopBar";
-import PriceChart     from "./components/PriceChart";
+// import LoginScreen from "./components/LoginScreen";
+import Sidebar from "./components/Sidebar";
+import LeftPanel from "./components/LeftPanel";
+import TopBar from "./components/TopBar";
+import PriceChart from "./components/PriceChart";
 import PortfolioPanel from "./components/PortfolioPanel";
 
-// ── CONSTANTS ─────────────────────────────────────────────────
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+/** Fixed user shown in workshop mode (no OAuth). */
+const WORKSHOP_USER = {
+  name: "Workshop User",
+  email: "workshop@colorstack.org",
+  picture: "https://ui-avatars.com/api/?name=Workshop+User&background=2563eb&color=fff",
+};
 
 const NAV_ITEMS = [
   { icon: "▦", label: "Terminal" },
@@ -24,10 +30,8 @@ const NAV_ITEMS = [
 
 const TIME_RANGES = ["1W", "1M", "3M", "6M", "1Y"];
 
-
-// ── MAIN APP ──────────────────────────────────────────────────
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser] = useState(WORKSHOP_USER);
   const [selectedTicker, setSelectedTicker] = useState("TSLA");
   const [searchQuery, setSearchQuery] = useState("");
   const [stockData, setStockData] = useState(null);
@@ -40,57 +44,42 @@ export default function App() {
   const [isWatchlistInputVisible, setIsWatchlistInputVisible] = useState(false);
   const [watchlistInputValue, setWatchlistInputValue] = useState("");
 
-  /**
-   * Reads the authenticated user from Flask session.
-   * Returns nothing; updates component state.
-   */
-  const fetchCurrentUser = useCallback(() => {
-    fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
-      // Parse JSON for both success and auth-failure payloads.
-      .then((response) => response.json())
-      // Store user only when backend confirms no error.
-      .then((payload) => {
-        if (!payload.error) setCurrentUser(payload);
-      })
-      // Keep login screen visible when session is missing.
-      .catch(() => {});
-  }, []);
+  // GOOGLE OAUTH — not used in workshop version
+  // useEffect(() => {
+  //   fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
+  //     .then((r) => r.json())
+  //     .then((d) => { if (!d.error) setCurrentUser(d); })
+  //     .catch(() => {});
+  // }, []);
 
   /**
-   * Fetches stock details for a ticker and updates dashboard state.
-   * Returns nothing; it sets loading, stock, and error states.
+   * Loads quote + history from Flask (two endpoints) and merges into one stock object.
    */
   const fetchStockData = useCallback((tickerSymbol) => {
     setIsLoadingStock(true);
     setStockError("");
 
-    fetch(`${API_BASE_URL}/api/stock/${tickerSymbol}`, { credentials: "include" })
-      // Stop flow early when HTTP status is not successful.
-      .then((response) => {
-        if (!response.ok) throw new Error("Bad response from server");
-        return response.json();
-      })
-      // Guard against API-level errors while accepting warning payloads.
-      .then((payload) => {
-        if (payload.error) throw new Error(payload.error);
-        setStockData(payload);
-        if (payload.warning) setStockError(payload.warning);
-      })
-      // Show a user-facing message and clear stale stock on failure.
+    Promise.all([
+      fetch(`${API_BASE_URL}/api/stock/${tickerSymbol}`),
+      fetch(`${API_BASE_URL}/api/stock/${tickerSymbol}/history`),
+    ])
+      .then(([quoteRes, histRes]) =>
+        Promise.all([quoteRes.json(), histRes.json()]).then(([quote, hist]) => {
+          if (!quoteRes.ok) throw new Error(quote.error || "Quote request failed");
+          if (!histRes.ok) throw new Error(hist.error || "History request failed");
+          if (quote.error) throw new Error(quote.error);
+          setStockData({ ...quote, history: hist.history || [] });
+        })
+      )
       .catch(() => {
         setStockError("Could not load stock data. Try another ticker.");
         setStockData(null);
       })
-      // Always clear loading state no matter how request resolves.
       .finally(() => {
         setIsLoadingStock(false);
       });
   }, []);
 
-  /**
-   * Handles ticker search form submission.
-   * Returns nothing; updates selected ticker and watchlist state.
-   */
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     const normalizedTicker = searchQuery.trim().toUpperCase();
@@ -105,10 +94,6 @@ export default function App() {
     setSearchQuery("");
   };
 
-  /**
-   * Formats a market-cap number into a compact dollar string.
-   * Returns formatted string like "$3.20T", "$450.00B", or "N/A".
-   */
   const formatMarketCap = (marketCapValue) => {
     if (!marketCapValue) return "N/A";
     if (marketCapValue >= 1e12) return `$${(marketCapValue / 1e12).toFixed(2)}T`;
@@ -116,10 +101,6 @@ export default function App() {
     return `$${(marketCapValue / 1e6).toFixed(2)}M`;
   };
 
-  /**
-   * Builds headline cards from the latest stock object.
-   * Returns an array of headline/source objects.
-   */
   const buildNewsFromStock = (latestStockData) => {
     if (!latestStockData) return [];
     const generatedHeadlines = [
@@ -133,19 +114,11 @@ export default function App() {
     return generatedHeadlines.map((headline) => ({ title: headline, source: "Yahoo" }));
   };
 
-  /**
-   * Slices historical price points for the active time range.
-   * Returns a filtered history array.
-   */
   const getChartDataForRange = useCallback(() => {
-    if (!stockData) return [];
+    if (!stockData || !stockData.history) return [];
     const rangeToDaysMap = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
     return stockData.history.slice(-(rangeToDaysMap[selectedRange] || 90));
   }, [selectedRange, stockData]);
-
-  useEffect(() => {
-    fetchCurrentUser();
-  }, [fetchCurrentUser]);
 
   useEffect(() => {
     fetchStockData(selectedTicker);
@@ -158,26 +131,17 @@ export default function App() {
   const chartData = useMemo(() => getChartDataForRange(), [getChartDataForRange]);
   const isPriceUp = !!stockData && stockData.change >= 0;
 
+  // GOOGLE OAUTH — not used in workshop version
+  // if (!currentUser) return <LoginScreen API={API_BASE_URL} />;
 
-  // ── RENDER ────────────────────────────────────────────────
-
-  // Show login screen if nobody is logged in
-  if (!currentUser) return <LoginScreen API={API_BASE_URL} />;
-
-  // Otherwise show the full dashboard
   return (
     <div className="app">
-
-      {/* Far left icon rail */}
       <Sidebar
         NAV_ITEMS={NAV_ITEMS}
         activeNav={activeNavigation}
         setActiveNav={setActiveNavigation}
-        API={API_BASE_URL}
-        setUser={setCurrentUser}
       />
 
-      {/* Left panel — search + watchlist */}
       <LeftPanel
         user={currentUser}
         ticker={selectedTicker}
@@ -193,21 +157,14 @@ export default function App() {
         handleSearch={handleSearchSubmit}
       />
 
-      {/* Main content */}
       <main className="main">
-
-        {/* Header bar */}
         <TopBar stock={stockData} user={currentUser} isUp={isPriceUp} />
 
-        {/* Loading + error messages */}
         {isLoadingStock && <div className="state-msg">Loading {selectedTicker}...</div>}
         {stockError && <div className="state-msg error">{stockError}</div>}
 
-        {/* Dashboard grid — only shows when data is ready */}
         {stockData && !isLoadingStock && (
           <div className="dashboard-grid">
-
-            {/* News feed */}
             <section className="news-section">
               {newsHeadlines.map((item, i) => (
                 <div className="news-item" key={i}>
@@ -217,7 +174,6 @@ export default function App() {
               ))}
             </section>
 
-            {/* Price chart */}
             <PriceChart
               chartData={chartData}
               range={selectedRange}
@@ -226,7 +182,6 @@ export default function App() {
               TIME_RANGES={TIME_RANGES}
             />
 
-            {/* Watchlist panel — rendered inside LeftPanel, shown here in grid */}
             <section className="wl-panel">
               <div className="wl-header">
                 <span className="wl-label">WATCHLIST</span>
@@ -251,9 +206,7 @@ export default function App() {
               ))}
             </section>
 
-            {/* Portfolio + stats */}
             <PortfolioPanel stock={stockData} formatCap={formatMarketCap} />
-
           </div>
         )}
       </main>
