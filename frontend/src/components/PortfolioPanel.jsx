@@ -12,7 +12,7 @@ export default function PortfolioPanel({
   dividendYield,
 }) {
   return (
-    <section className="portfolio-panel">
+    <section className="portfolio-panel portfolio-section">
       <div className="portfolio-header">
         <span className="portfolio-label">PORTFOLIO</span>
         <div className="portfolio-actions">
@@ -24,7 +24,7 @@ export default function PortfolioPanel({
           </button>
         </div>
       </div>
-      <p className="port-hint">No holdings yet</p>
+      <p className="portfolio-empty">No holdings yet</p>
 
       <StockStats
         marketCap={marketCap}

@@ -101,6 +101,34 @@ export default function App() {
     }
   }, [stock]);
 
+  /** Prefetch quote for every watchlist symbol (fixes e.g. NVDA showing — until selected). */
+  useEffect(() => {
+    let cancelled = false;
+    const symbols = [...watchlistTickers];
+    (async () => {
+      await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            const data = await fetchStockQuote(sym);
+            if (cancelled || data?.symbol == null) return;
+            setQuoteSnapshots((prev) => ({
+              ...prev,
+              [data.symbol]: {
+                price: data.price,
+                change: data.change,
+              },
+            }));
+          } catch {
+            /* keep prior snapshot if any */
+          }
+        })
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [watchlistTickers]);
+
   const newsItems = useMemo(
     () =>
       stock ? buildNewsHeadlines(stock.name, stock.symbol) : [],
@@ -145,7 +173,7 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className="app app-layout">
       <Sidebar
         navigationItems={NAVIGATION_ITEMS}
         activeNav={activeNavigation}
@@ -170,7 +198,7 @@ export default function App() {
         onRemoveWatchlistTicker={handleRemoveWatchlistTicker}
       />
 
-      <main className="main">
+      <main className="main main-content">
         <TopBar
           symbol={stock?.symbol ?? null}
           name={stock?.name ?? null}
@@ -189,7 +217,7 @@ export default function App() {
         {stockError && <div className="state-msg error">{stockError}</div>}
 
         {stock && !isLoadingStock && (
-          <div className="dashboard-main">
+          <div className="dashboard-main right-panel body-layout">
             <StockChart
               chartData={chartData}
               selectedRange={selectedRange}

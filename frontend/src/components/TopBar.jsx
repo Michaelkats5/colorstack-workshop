@@ -50,7 +50,7 @@ export default function TopBar({
   const hasQuote = symbol != null && price != null;
 
   return (
-    <header className="topbar">
+    <header className="topbar top-bar">
       {hasQuote && (
         <div className="topbar-ticker-row">
           <span className="topbar-ticker">{symbol}</span>

@@ -17,8 +17,8 @@ import {
   ymdToUtcMs,
 } from "../chartRangeUtils";
 
-/** Recharts chart height in px. */
-const CHART_HEIGHT_PX = 280;
+/** Recharts chart height in px (fixed wrapper height avoids overflow at zoom). */
+const CHART_HEIGHT_PX = 200;
 
 /**
  * Price history area chart with range pills. Parent passes pre-sliced `chartData` for the active window.
@@ -51,7 +51,7 @@ export default function StockChart({
   const chartKey = `${selectedRange}-${lastDate}-${chartData.length}`;
 
   return (
-    <section className="chart-section">
+    <section className="chart-section chart-container">
       <div className="chart-header">
         <span className="chart-label">PRICE HISTORY</span>
         <div className="range-pills">
@@ -68,12 +68,16 @@ export default function StockChart({
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
-        <AreaChart
-          key={chartKey}
-          data={chartRows}
-          margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
-        >
+      <div
+        className="chart-wrapper"
+        style={{ width: "100%", minWidth: 0, overflow: "hidden" }}
+      >
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT_PX}>
+          <AreaChart
+            key={chartKey}
+            data={chartRows}
+            margin={{ top: 5, right: 20, bottom: 5, left: 50 }}
+          >
           <defs>
             <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--blue)" stopOpacity={0.15} />
@@ -92,6 +96,8 @@ export default function StockChart({
             tickFormatter={(ms) => formatXAxisDate(msToYmd(ms), selectedRange)}
             tickLine={false}
             axisLine={false}
+            minTickGap={24}
+            padding={{ left: 4, right: 12 }}
           />
 
           <YAxis
@@ -100,7 +106,7 @@ export default function StockChart({
             tickLine={false}
             axisLine={false}
             domain={["auto", "auto"]}
-            width={55}
+            width={50}
           />
 
           <Tooltip
@@ -129,8 +135,9 @@ export default function StockChart({
             fill="url(#grad)"
             dot={false}
           />
-        </AreaChart>
-      </ResponsiveContainer>
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </section>
   );
 }

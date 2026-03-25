@@ -3,7 +3,7 @@
  */
 export default function Sidebar({ navigationItems, activeNav, onNavChange }) {
   return (
-    <aside className="icon-rail">
+    <aside className="icon-rail sidebar">
       <div className="rail-logo">◈</div>
 
       {navigationItems.map((item) => (
