@@ -9,5 +9,10 @@ export function buildNewsHeadlines(companyName, symbol) {
     `Institutional Investors Increase Stakes in ${companyName}`,
     `${symbol} Options Activity Signals Bullish Sentiment`,
   ];
-  return lines.map((title) => ({ title, source: "Yahoo" }));
+  const dates = ["2h ago", "5h ago", "Today", "Yesterday", "2d ago", "3d ago"];
+  return lines.map((title, index) => ({
+    title,
+    source: "Yahoo Finance",
+    date: dates[index % dates.length],
+  }));
 }

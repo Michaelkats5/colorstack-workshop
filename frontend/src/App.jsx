@@ -165,7 +165,7 @@ export default function App() {
         wlInput={watchlistInputValue}
         setWlInput={setWatchlistInputValue}
         handleSearch={handleSearchSubmit}
-        newsItems={newsItems}
+        articles={newsItems}
         quoteSnapshots={quoteSnapshots}
         onRemoveWatchlistTicker={handleRemoveWatchlistTicker}
       />

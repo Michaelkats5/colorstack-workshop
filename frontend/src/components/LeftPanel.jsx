@@ -2,7 +2,7 @@ import NewsSection from "./NewsSection";
 import Watchlist from "./Watchlist";
 
 /**
- * Fixed column: brand, search, latest news, watchlist (news directly above watchlist), add ticker, user.
+ * Fixed column: brand, search, watchlist, news, add ticker, user.
  */
 export default function LeftPanel({
   user,
@@ -17,7 +17,7 @@ export default function LeftPanel({
   wlInput,
   setWlInput,
   handleSearch,
-  newsItems,
+  articles,
   quoteSnapshots,
   onRemoveWatchlistTicker,
 }) {
@@ -41,8 +41,6 @@ export default function LeftPanel({
       </form>
 
       <div className="left-panel-feed">
-        <NewsSection items={newsItems} title="Latest News" />
-        <div className="left-panel-divider" aria-hidden="true" />
         <Watchlist
           tickers={watchlist}
           selectedTicker={ticker}
@@ -50,6 +48,8 @@ export default function LeftPanel({
           onRemoveTicker={onRemoveWatchlistTicker}
           quotesByTicker={quoteSnapshots}
         />
+        <div className="left-panel-divider" aria-hidden="true" />
+        <NewsSection articles={articles} title="Latest News" />
       </div>
 
       <div className="wl-header">

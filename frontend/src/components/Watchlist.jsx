@@ -11,8 +11,8 @@ export default function Watchlist({
   const hasRows = tickers.length > 0;
 
   return (
-    <section className="watchlist-panel-card" aria-label="Watchlist">
-      <h3 className="panel-card-heading">Watchlist</h3>
+    <section className="watchlist-panel-card watchlist-panel-prominent" aria-label="Watchlist">
+      <h3 className="watchlist-section-heading">Watchlist</h3>
       {!hasRows ? (
         <p className="watchlist-empty">
           No symbols in your list. Use search or Add ticker below.
