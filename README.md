@@ -1,5 +1,18 @@
 # ColorStack Fintech Workshop
 
+<img width="1090" height="441" alt="FInTech" src="https://github.com/user-attachments/assets/94837dae-086f-48c9-b33e-5bbd1fa66c3d" />
+
+
+
+
+
+
+
+
+
+
+
+
 Full-stack stock dashboard: **Flask** + **yfinance** on the backend, **React** + **Vite** on the frontend. Live Yahoo data only — the API returns errors when a quote or history cannot be loaded (no fake numbers).
 
 ## Project structure
