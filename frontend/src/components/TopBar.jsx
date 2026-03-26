@@ -1,16 +1,21 @@
-/**
- * Main content header: symbol, price, change, Yahoo quote time, user avatar.
- */
+// ============================================================
+// PHASE 1 ? User Input
+// File: frontend/src/components/TopBar.jsx
+// ============================================================
+// What this file does in plain English:
+// Displays the currently selected stock quote and user identity.
+// It reacts to ticker changes that start from user input.
+// ============================================================
 
-/** Human-readable suffix for Yahoo marketState (PRE / POST / CLOSED). */
+// This helper adds a market-state suffix to the quote timestamp line.
 function getMarketStateSuffix(marketState) {
-  if (marketState === "PRE") return " Â· Pre-market";
-  if (marketState === "POST") return " Â· After hours";
-  if (marketState === "CLOSED") return " Â· Market closed";
+  if (marketState === "PRE") return " · Pre-market";
+  if (marketState === "POST") return " · After hours";
+  if (marketState === "CLOSED") return " · Market closed";
   return "";
 }
 
-/** One line describing when the quote was valid (exchange-local time). */
+// This helper builds one readable line like "As of ..." for the header.
 function buildQuoteAsOfLine(quoteTimeIso, exchangeTimezone, marketState) {
   if (!quoteTimeIso) {
     return new Date().toLocaleDateString("en-US", {
@@ -19,21 +24,21 @@ function buildQuoteAsOfLine(quoteTimeIso, exchangeTimezone, marketState) {
       day: "numeric",
     });
   }
-  const parsed = new Date(quoteTimeIso);
-  const timeZone = exchangeTimezone || undefined;
-  const datePart = parsed.toLocaleDateString("en-US", {
+
+  const parsedDate = new Date(quoteTimeIso);
+  const datePart = parsedDate.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone,
+    timeZone: exchangeTimezone || undefined,
   });
-  const timePart = parsed.toLocaleTimeString("en-US", {
+  const timePart = parsedDate.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone,
+    timeZone: exchangeTimezone || undefined,
   });
-  return `As of ${datePart} Â· ${timePart}${getMarketStateSuffix(marketState)}`;
+  return `As of ${datePart} · ${timePart}${getMarketStateSuffix(marketState)}`;
 }
 
 export default function TopBar({
@@ -47,7 +52,8 @@ export default function TopBar({
   user,
   isPriceUp,
 }) {
-  const hasQuote = symbol != null && price != null;
+  const hasQuote = symbol !== null && price !== null;
+  const safeChange = change == null ? 0 : Number(change);
 
   return (
     <header className="topbar top-bar">
@@ -59,17 +65,14 @@ export default function TopBar({
             ${Number(price).toLocaleString()}
           </span>
           <span className={`topbar-change ${isPriceUp ? "up" : "down"}`}>
-            {isPriceUp ? "â–²" : "â–¼"} {Math.abs(change ?? 0)}%
+            {isPriceUp ? "UP" : "DOWN"} {Math.abs(safeChange)}%
           </span>
         </div>
       )}
 
       <div className="topbar-meta">
         <div className="topbar-quote-block">
-          <span
-            className="topbar-date"
-            title={hasQuote ? "Quote time from Yahoo Finance" : undefined}
-          >
+          <span className="topbar-date" title={hasQuote ? "Quote time from Yahoo Finance" : undefined}>
             {buildQuoteAsOfLine(quoteTimeIso, exchangeTimezone, marketState)}
           </span>
         </div>

@@ -1,21 +1,27 @@
-/**
- * Fixed icon rail: primary app sections (workshop uses local state only).
- */
+// ============================================================
+// PHASE 1 ? User Input
+// File: frontend/src/components/Sidebar.jsx
+// ============================================================
+// What this file does in plain English:
+// Renders the left icon rail and lets the user switch sections.
+// User clicks here update simple local navigation state.
+// ============================================================
+
 export default function Sidebar({ navigationItems, activeNav, onNavChange }) {
   return (
     <aside className="icon-rail sidebar">
-      <div className="rail-logo">◈</div>
+      <div className="rail-logo">CS</div>
 
-      {navigationItems.map((item) => (
+      {navigationItems.map((navItem) => (
         <button
-          key={item.label}
+          key={navItem.label}
           type="button"
-          className={`rail-btn ${activeNav === item.label ? "active" : ""}`}
-          onClick={() => onNavChange(item.label)}
-          title={item.label}
+          className={`rail-btn ${activeNav === navItem.label ? "active" : ""}`}
+          onClick={() => onNavChange(navItem.label)}
+          title={navItem.label}
         >
-          <span className="rail-icon">{item.icon}</span>
-          <span className="rail-label">{item.label}</span>
+          <span className="rail-icon">{navItem.icon}</span>
+          <span className="rail-label">{navItem.label}</span>
         </button>
       ))}
 

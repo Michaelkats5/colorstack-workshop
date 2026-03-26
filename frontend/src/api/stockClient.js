@@ -1,58 +1,44 @@
-/** Base URL for the Flask workshop API (override with VITE_API_BASE_URL). */
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.trim() || "http://localhost:5000";
+﻿// ============================================================
+// PHASE 3 - API Call
+// File: frontend/src/api/stockClient.js
+// ============================================================
+// What this file does:
+// Sends HTTP requests to the Flask backend.
+// This is the only file that talks to Flask directly.
+// ============================================================
 
-/**
- * Fetches combined quote + daily history for one symbol.
- * @param {string} tickerSymbol Uppercase ticker.
- * @returns {Promise<object>} Parsed JSON with normalized `history` array.
- */
-export async function fetchStockQuote(tickerSymbol) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/stock/${encodeURIComponent(tickerSymbol)}`
-  );
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error(
-      "Bad response from server (not JSON). Is the backend running on port 5000?"
-    );
-  }
-  if (!response.ok) {
-    throw new Error(data.error || `Request failed (${response.status})`);
-  }
-  if (data.error) {
-    throw new Error(data.error);
-  }
-  return {
-    ...data,
-    history: Array.isArray(data.history) ? data.history : [],
-  };
+// Flask is running here on your computer.
+const API = "http://localhost:5000";
+
+// Convert non-standard JSON tokens (NaN/Infinity) into null.
+function parseServerJson(jsonText) {
+  const safeJsonText = jsonText
+    .replace(/\bNaN\b/g, "null")
+    .replace(/\bInfinity\b/g, "null")
+    .replace(/\b-Infinity\b/g, "null");
+  return JSON.parse(safeJsonText);
 }
 
-/**
- * Fetches live news articles for a symbol (Yahoo via Flask / yfinance).
- * @param {string} tickerSymbol
- * @returns {Promise<Array<{ title: string, source: string, date?: string, link?: string }>>}
- */
-export async function fetchStockNews(tickerSymbol) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/stock/${encodeURIComponent(tickerSymbol)}/news`
-  );
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error(
-      "Bad response from server (not JSON). Is the backend running on port 5000?"
-    );
-  }
-  if (!response.ok) {
-    throw new Error(data.error || `News request failed (${response.status})`);
-  }
-  if (data.error) {
-    throw new Error(data.error);
-  }
+// Get live stock data plus price history for the chart.
+export async function fetchStockQuote(ticker) {
+  const response = await fetch(`${API}/api/stock/${ticker}`);
+  if (!response.ok) throw new Error("Bad response from server");
+
+  const jsonText = await response.text();
+  const data = parseServerJson(jsonText);
+  if (data.error) throw new Error(data.error);
+
+  return data;
+}
+
+// Get latest news articles for a stock.
+export async function fetchStockNews(ticker) {
+  const response = await fetch(`${API}/api/stock/${ticker}/news`);
+  if (!response.ok) throw new Error("Bad response from server");
+
+  const jsonText = await response.text();
+  const data = parseServerJson(jsonText);
+  if (data.error) throw new Error(data.error);
+
   return Array.isArray(data.articles) ? data.articles : [];
 }

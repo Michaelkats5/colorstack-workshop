@@ -1,9 +1,25 @@
+// ============================================================
+// PHASE 1 ? User Input
+// File: frontend/src/components/LeftPanel.jsx
+// ============================================================
+// What this file does in plain English:
+// This is where the user types a ticker and submits search.
+// It also shows watchlist + news and lets the user add/remove
+// tickers before data fetch starts in useStockData.js.
+// ============================================================
+
 import NewsSection from "./NewsSection";
 import Watchlist from "./Watchlist";
 
-/**
- * Fixed column: brand, search, watchlist, news, add ticker, user.
- */
+// This function adds a ticker from the add-row form.
+function addTickerFromInput(watchlistInputValue, watchlist, setWatchlist, setTicker) {
+  const newTicker = watchlistInputValue.trim().toUpperCase();
+  if (!newTicker) return;
+  if (watchlist.includes(newTicker)) return;
+  setWatchlist([...watchlist, newTicker]);
+  setTicker(newTicker);
+}
+
 export default function LeftPanel({
   user,
   ticker,
@@ -33,11 +49,9 @@ export default function LeftPanel({
           className="panel-input"
           value={input}
           onChange={(event) => setInput(event.target.value.toUpperCase())}
-          placeholder="Search ticker…"
+          placeholder="Search ticker..."
         />
-        <button type="submit" className="panel-search-btn">
-          →
-        </button>
+        <button type="submit" className="panel-search-btn">-&gt;</button>
       </form>
 
       <div className="left-panel-feed">
@@ -62,7 +76,7 @@ export default function LeftPanel({
             setWlInput("");
           }}
         >
-          {showWlInput ? "✕" : "+"}
+          {showWlInput ? "x" : "+"}
         </button>
       </div>
 
@@ -71,11 +85,7 @@ export default function LeftPanel({
           className="wl-add-row"
           onSubmit={(event) => {
             event.preventDefault();
-            const newTicker = wlInput.trim().toUpperCase();
-            if (newTicker && !watchlist.includes(newTicker)) {
-              setWatchlist([...watchlist, newTicker]);
-              setTicker(newTicker);
-            }
+            addTickerFromInput(wlInput, watchlist, setWatchlist, setTicker);
             setWlInput("");
             setShowWlInput(false);
           }}
@@ -88,9 +98,7 @@ export default function LeftPanel({
             autoFocus
             maxLength={5}
           />
-          <button type="submit" className="wl-submit">
-            Add
-          </button>
+          <button type="submit" className="wl-submit">Add</button>
         </form>
       )}
 
@@ -102,9 +110,7 @@ export default function LeftPanel({
         </div>
       </div>
 
-      <button type="button" className="upgrade-btn">
-        Upgrade to Pro
-      </button>
+      <button type="button" className="upgrade-btn">Upgrade to Pro</button>
     </aside>
   );
 }
