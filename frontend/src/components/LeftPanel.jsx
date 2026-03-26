@@ -1,5 +1,4 @@
 import NewsSection from "./NewsSection";
-import SetupGuide from "./SetupGuide";
 import Watchlist from "./Watchlist";
 
 /**
@@ -28,8 +27,6 @@ export default function LeftPanel({
         <span className="brand-name">Intelligence</span>
         <span className="brand-sub">MARKET BROAD SHEET</span>
       </div>
-
-      <SetupGuide />
 
       <form onSubmit={handleSearch} className="panel-search">
         <input

@@ -262,50 +262,6 @@ body {
   flex-shrink: 0;
 }
 
-.setup-guide {
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: var(--bg-secondary);
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.setup-guide-title {
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 10px;
-  color: var(--muted);
-  margin: 0 0 8px 0;
-}
-
-.setup-guide-list {
-  margin: 0 0 8px 1.1em;
-  padding: 0;
-}
-
-.setup-guide-list li {
-  margin-bottom: 4px;
-}
-
-.setup-guide-list code,
-.setup-guide-note code {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 4px;
-}
-
-.setup-guide-note {
-  margin: 0;
-  font-size: 10px;
-  color: var(--muted);
-}
-
 .panel-card-heading {
   font-size: 11px;
   font-weight: 700;

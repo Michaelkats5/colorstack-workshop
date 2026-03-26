@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import { NAVIGATION_ITEMS, WORKSHOP_USER } from "./constants/appConstants";
 import { useStockData } from "./hooks/useStockData";
